@@ -101,7 +101,7 @@ const KNOWN_SETTINGS = new Set([
   'settleMs', 'dedupeShots', 'stepPauseMs', 'sequenceMaxSteps', 'uiaMinControls',
   'coordinateTtlMs', 'hotkey', 'hotkeyMode', 'dockHotkey', 'hotkeyPrompt',
   'clickSnap', 'snapRadius', 'verifyClick', 'retryOnMiss',
-  'shotDir', 'keepShots', 'previewCorner', 'previewFollow',
+  'shotDir', 'keepShots', 'previewCorner', 'previewFollow', 'pillCorner',
   'cardWidth', 'cardHeight', 'cardMargin', 'previewShotMs', 'zoomMaxSide', 'ocrMaxLines', 'ocrFallbackLines',
   'pauseHotkey', 'dockIdleMs',
   'cleanMode', 'effectGlow', 'effectBanner', 'effectPreview', 'effectCard',
@@ -280,6 +280,10 @@ export const Config = z.object({
   previewCorner: z.union(['topright', 'topleft', 'bottomright', 'bottomleft', 'custom']).default('topright')
     .description('没有控制窗口时，截图预览放哪个角；custom = 用停靠面板记下的自定义位置').volatile(),
   previewFollow: boolField(true, '控制窗口出现时，把截图预览贴在它边上（左右自动选空的一侧）'),
+  pillCorner: z.union(['topcenter', 'topleft', 'topright', 'bottomleft', 'bottomright', 'custom'])
+    .default('topcenter')
+    .description('「正在操作哪个窗口」标牌放哪；custom = 拖到哪记哪（存在 %TEMP%\\dsh-computer-use-pillpos.json）')
+    .volatile(),
   noticeSeconds: numberField(5, '居中提示停留时间（秒）'),
   mirror: boolField(true, '把会话内容镜像到卡片上'),
   maxImageWidth: numberField(1596, '截图下采样宽度；1596 正好贴模型 patch 网格，改大只会更贵'),
@@ -389,6 +393,10 @@ function resolveSettings(config) {
       ? raw.previewCorner
       : 'topright',
     previewFollow: raw.previewFollow !== false,
+    // 目标标牌的位置：顶部居中默认，四角可选；custom 用拖动记下的坐标。
+    pillCorner: ['topcenter', 'topleft', 'topright', 'bottomleft', 'bottomright', 'custom'].includes(raw.pillCorner)
+      ? raw.pillCorner
+      : 'topcenter',
     hotkey: typeof raw.hotkey === 'string' ? raw.hotkey.trim() : '',
     hotkeyMode: raw.hotkeyMode === 'prompt' ? 'prompt' : 'summon',
     dockHotkey: typeof raw.dockHotkey === 'string' ? raw.dockHotkey.trim() : '',
@@ -1706,6 +1714,7 @@ export function apply(ctx, config) {
           // 被别的窗口压住时别画边框：浮层在最上层，那条边会看起来像被压住的
           // 窗口反而在前面。露出来以后下一次轮询会自然把它画回去。
           covered: rect.covered === true,
+          pillCorner: settings.pillCorner,
           label: `${capture.process ? `${capture.process} · ` : ''}${capture.title ?? ''}`.slice(0, 60),
         })
       } catch { /* a closed window simply loses its frame */ }

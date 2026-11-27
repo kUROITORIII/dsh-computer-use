@@ -1254,9 +1254,16 @@ function Handle-Message($line) {
             $pillCaption = [string]$message.label
             if ([string]::IsNullOrWhiteSpace($pillCaption)) {
                 $targetPill.Visibility = 'Collapsed'
+                $script:pillGrip.Hide()
             } else {
+                if ([string]$targetPillText.Text -ne $pillCaption) {
+                    # 换了目标窗口：把手重新露出来，方便重新摆位置。
+                    $script:pillGripSuppressed = $false
+                    if ($null -ne $script:pillGripTimer) { $script:pillGripTimer.Stop(); $script:pillGripTimer = $null }
+                }
                 $targetPillText.Text = $pillCaption
                 $targetPill.Visibility = 'Visible'
+                Set-PillPlacement ([string]$message.pillCorner)
             }
             if ($targetWidth -le 1 -or $targetHeight -le 1) {
                 $targetFrame.Visibility = 'Collapsed'
@@ -1337,6 +1344,7 @@ function Handle-Message($line) {
             $targetFlow.Visibility = 'Collapsed'
             $targetLabel.Visibility = 'Collapsed'
             $targetPill.Visibility = 'Collapsed'
+            $script:pillGrip.Hide()
         }
         'live' {
             $lineText = [string]$message.text
@@ -1448,6 +1456,130 @@ $script:grip.Add_MouseLeftButtonUp({
     } catch { }
     Send-Host ([pscustomobject]@{ type = 'preview-moved'; x = $x; y = $y })
     Write-Log ('preview moved xy=' + $x + ',' + $y)
+})
+
+# 目标标牌的位置：默认顶部居中，也可以选四角；custom = 拖到哪记哪。
+$script:pillPosPath = Join-Path $env:TEMP 'dsh-computer-use-pillpos.json'
+$script:pillCorner = 'topcenter'
+$script:pillCustomX = 24
+$script:pillCustomY = 24
+try {
+    if (Test-Path -LiteralPath $script:pillPosPath) {
+        $savedPill = Get-Content -LiteralPath $script:pillPosPath -Raw | ConvertFrom-Json
+        if ($null -ne $savedPill.x -and $null -ne $savedPill.y) {
+            $script:pillCustomX = [int]$savedPill.x
+            $script:pillCustomY = [int]$savedPill.y
+        }
+    }
+} catch { }
+
+$pillGripXaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DSH computer use pill grip"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" Topmost="True" ShowActivated="False"
+        ResizeMode="NoResize" Width="26" Height="22" Cursor="SizeAll">
+  <Border CornerRadius="6" Background="#F20F1014" BorderThickness="1" BorderBrush="#4D2F7DF6">
+    <TextBlock Text="⣿" FontSize="11" Foreground="#8FB6F5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+  </Border>
+</Window>
+'@
+$script:pillGrip = [System.Windows.Markup.XamlReader]::Parse($pillGripXaml)
+$script:pillGripDrag = $false
+$script:pillGripStartCursor = [System.Windows.Point]::new(0, 0)
+$script:pillGripStartX = 0
+$script:pillGripStartY = 0
+# 拖完之后把手要自己收起来，别一直挂在屏幕上；换目标窗口再出现。
+$script:pillGripSuppressed = $false
+$script:pillGripTimer = $null
+
+function Hide-PillGripSoon {
+    if ($null -ne $script:pillGripTimer) { $script:pillGripTimer.Stop() }
+    $script:pillGripTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:pillGripTimer.Interval = [TimeSpan]::FromSeconds(5)
+    $script:pillGripTimer.Add_Tick({
+        $script:pillGripTimer.Stop()
+        $script:pillGripTimer = $null
+        $script:pillGripSuppressed = $true
+        $script:pillGrip.Hide()
+    })
+    $script:pillGripTimer.Start()
+}
+
+function Update-PillGrip {
+    $show = ($script:pillCorner -eq 'custom') -and ($targetPill.Visibility -eq 'Visible') -and (-not $script:pillGripSuppressed)
+    if (-not $show) { $script:pillGrip.Hide(); return }
+    $script:pillGrip.Left = [Math]::Round([Math]::Max($virtualLeft + 8, $script:pillCustomX - 34))
+    $script:pillGrip.Top = [Math]::Round([Math]::Max($virtualTop + 8, $script:pillCustomY + 3))
+    $script:pillGrip.Show()
+}
+
+function Set-PillPlacement([string]$corner) {
+    if ([string]::IsNullOrWhiteSpace($corner)) { $corner = 'topcenter' }
+    $script:pillCorner = $corner
+    $targetPill.HorizontalAlignment = 'Center'
+    $targetPill.VerticalAlignment = 'Top'
+    $margin = [System.Windows.Thickness]::new(0, 12, 0, 0)
+    switch ($corner) {
+        'topleft' {
+            $targetPill.HorizontalAlignment = 'Left'
+            $margin = [System.Windows.Thickness]::new(12, 12, 0, 0)
+        }
+        'topright' {
+            $targetPill.HorizontalAlignment = 'Right'
+            $margin = [System.Windows.Thickness]::new(0, 12, 12, 0)
+        }
+        'bottomleft' {
+            $targetPill.HorizontalAlignment = 'Left'
+            $targetPill.VerticalAlignment = 'Bottom'
+            $margin = [System.Windows.Thickness]::new(12, 0, 0, 12)
+        }
+        'bottomright' {
+            $targetPill.HorizontalAlignment = 'Right'
+            $targetPill.VerticalAlignment = 'Bottom'
+            $margin = [System.Windows.Thickness]::new(0, 0, 12, 12)
+        }
+        'custom' {
+            $targetPill.HorizontalAlignment = 'Left'
+            $margin = [System.Windows.Thickness]::new(
+                [Math]::Max(0, $script:pillCustomX - $virtualLeft),
+                [Math]::Max(0, $script:pillCustomY - $virtualTop), 0, 0)
+        }
+    }
+    $targetPill.Margin = $margin
+    Update-PillGrip
+}
+
+$script:pillGrip.Add_MouseLeftButtonDown({
+    $script:pillGripDrag = $true
+    $cursor = [System.Windows.Forms.Cursor]::Position
+    $script:pillGripStartCursor = [System.Windows.Point]::new($cursor.X, $cursor.Y)
+    $script:pillGripStartX = $script:pillCustomX
+    $script:pillGripStartY = $script:pillCustomY
+    [void]$script:pillGrip.CaptureMouse()
+})
+$script:pillGrip.Add_MouseMove({
+    if (-not $script:pillGripDrag) { return }
+    $cursor = [System.Windows.Forms.Cursor]::Position
+    $dx = ($cursor.X - $script:pillGripStartCursor.X) / $script:dpiScale
+    $dy = ($cursor.Y - $script:pillGripStartCursor.Y) / $script:dpiScale
+    $script:pillCustomX = [int][Math]::Min([Math]::Max($script:pillGripStartX + $dx, $virtualLeft + 8), $virtualLeft + $virtualWidth - 140)
+    $script:pillCustomY = [int][Math]::Min([Math]::Max($script:pillGripStartY + $dy, $virtualTop + 8), $virtualTop + $virtualHeight - 44)
+    $targetPill.Margin = [System.Windows.Thickness]::new(
+        [Math]::Max(0, $script:pillCustomX - $virtualLeft),
+        [Math]::Max(0, $script:pillCustomY - $virtualTop), 0, 0)
+    Update-PillGrip
+})
+$script:pillGrip.Add_MouseLeftButtonUp({
+    if (-not $script:pillGripDrag) { return }
+    $script:pillGripDrag = $false
+    [void]$script:pillGrip.ReleaseMouseCapture()
+    try {
+        [System.IO.File]::WriteAllText($script:pillPosPath, ('{"x":' + $script:pillCustomX + ',"y":' + $script:pillCustomY + '}'), [System.Text.UTF8Encoding]::new($false))
+    } catch { }
+    Write-Log ('pill moved xy=' + $script:pillCustomX + ',' + $script:pillCustomY)
+    Hide-PillGripSoon
 })
 
 # Show one captured frame beside the docked panel, then fade it away. The file is
