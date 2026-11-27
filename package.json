@@ -1,0 +1,70 @@
+{
+  "name": "dsh-computer-use-windows",
+  "version": "0.30.0",
+  "description": "Windows computer-use tools for DeepSeek Harness: drive the real desktop through UI Automation, OCR, zoom and batched steps, with per-accessory visual switches and a clean mode that draws nothing at all.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "host.js",
+    "presence.js",
+    "client.js",
+    "cordis.patch.yml",
+    "scripts",
+    "vendor",
+    "locale/*.json",
+    "docs/*.md",
+    "docs/*.svg",
+    "docs/*.png",
+    "tools",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node tools/check-docs.cjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "win32"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "computer-use",
+    "desktop-automation",
+    "ui-automation",
+    "windows",
+    "ocr",
+    "screen-capture",
+    "rpa"
+  ],
+  "author": "kUROITORIII",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kUROITORIII/dsh-computer-use-windows.git"
+  },
+  "homepage": "https://github.com/kUROITORIII/dsh-computer-use-windows#readme",
+  "bugs": {
+    "url": "https://github.com/kUROITORIII/dsh-computer-use-windows/issues"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  }
+}

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="300" viewBox="0 0 640 300" role="img" aria-label="控制期间屏幕四周的蓝色光边与点击落点">
+  <defs>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141821"/>
+      <stop offset="1" stop-color="#0B0D12"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2F7DF6" stop-opacity="0.95"/>
+      <stop offset="0.5" stop-color="#5AA0FF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#2F7DF6" stop-opacity="0.95"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <rect width="640" height="300" fill="#07080B"/>
+
+  <!-- 屏幕 -->
+  <rect x="40" y="24" width="560" height="216" rx="10" fill="url(#screen)" stroke="#202634"/>
+
+  <!-- 屏幕四周的蓝边：外发光 + 实线 -->
+  <rect x="40" y="24" width="560" height="216" rx="10" fill="none" stroke="url(#glow)" stroke-width="10" opacity="0.35" filter="url(#soft)"/>
+  <rect x="40" y="24" width="560" height="216" rx="10" fill="none" stroke="url(#glow)" stroke-width="3"/>
+
+  <!-- 屏幕里的示意控件 -->
+  <rect x="76" y="60" width="232" height="18" rx="4" fill="#1B2130"/>
+  <rect x="76" y="92" width="330" height="12" rx="3" fill="#151A26"/>
+  <rect x="76" y="114" width="286" height="12" rx="3" fill="#151A26"/>
+  <rect x="76" y="136" width="308" height="12" rx="3" fill="#151A26"/>
+  <rect x="430" y="60" width="134" height="88" rx="6" fill="#121722" stroke="#232A3A"/>
+
+  <!-- 目标窗口边框 -->
+  <rect x="418" y="52" width="158" height="104" rx="8" fill="none" stroke="#2F7DF6" stroke-width="2" stroke-dasharray="7 5" opacity="0.9"/>
+
+  <!-- 点击落点光圈 -->
+  <circle cx="497" cy="104" r="17" fill="none" stroke="#7FB4FF" stroke-width="2" opacity="0.9"/>
+  <circle cx="497" cy="104" r="4.5" fill="#BFD7FF"/>
+
+  <!-- 状态条示意 -->
+  <rect x="40" y="24" width="230" height="8" rx="4" fill="url(#glow)" opacity="0.85"/>
+
+  <!-- 文案 -->
+  <text x="40" y="272" fill="#9AA6BF" font-family="Segoe UI, Microsoft YaHei UI, sans-serif" font-size="13">屏幕四周的蓝边表示「正在操作这台电脑」；虚线圈是目标窗口，实心圆点是点击落点。</text>
+</svg>

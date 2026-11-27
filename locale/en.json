@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "DSH-Computer-Use",
+    "description": "Let DeepSeek drive this Windows desktop: UI Automation first, then OCR, and a screenshot only when nothing else works; click, drag, scroll, type, focus and run batched steps. The edge glow, status strip, capture preview, target frame, click marker, notice, control card and docking can each be switched off, and Clean mode draws nothing at all. Ctrl+Alt+Q pauses instantly; disabling the plugin removes every tool and helper process. Open DSH-Computer-Use on the Plugins page — its switches are on the plugin's own page — and each one applies on the next operation.",
+    "detail": "docs/DETAIL.md"
+  }
+}

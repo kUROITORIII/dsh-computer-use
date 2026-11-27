@@ -1,0 +1,22 @@
+# 本文件定义插件在 DSH 里注册的那一行（Loader 读取它）。
+# 所有可调项的完整清单见 docs/SETTINGS.md；设置页里能改的会直接写回 profile。
+- insert:
+    - id: computer-use-windows
+      name: dsh-computer-use-windows
+      inject: ['tools']
+      config:
+        # 危险动作要不要先问一句：never / once-per-session / every-action。
+        # 公开默认 once-per-session：第一次针对某个程序操作前问一次，之后不再打断。
+        # 想完全不打断就改成 never（自己清楚这台机器在做什么时）。
+        approval: once-per-session
+        # 显示形态：
+        #   dock  = 控制期间把会话窗口缩到角落，收工自动还原（长任务用这个）
+        #   float = 只出一张悬浮卡片，会话窗口一个像素都不动
+        windowMode: dock
+        # 交给模型的截图最大宽度（默认 1596，约等于 38 个 42px patch，再多也白花 token）。
+        maxImageWidth: 1596
+        # 随时暂停：Ctrl+Alt+Q。暂停时所有点击/按键/滚动/UIA 动作都被拒绝。留空 = 关闭。
+        pauseHotkey: ctrl+alt+q
+        # 空闲多少毫秒后把窗口还给你。0 = 整个回合都停在角落。
+        # 只对 windowMode: dock 有意义；长任务建议 0。
+        dockIdleMs: 0

@@ -1,0 +1,25 @@
+# Local development material, never published.
+dev/
+.lab/
+.lab-asar/
+
+# Package managers / build output
+node_modules/
+dist/
+
+# Backups, snapshots, scratch
+*.backup-*/
+*.wip-*
+*.rollback-*
+*.bak*
+!icon.svg.bak
+shots/
+*.log
+
+# OS / editor noise
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+.idea/
+.vscode/

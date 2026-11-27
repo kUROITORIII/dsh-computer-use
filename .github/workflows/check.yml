@@ -1,0 +1,46 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  static:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 四个 JS 文件的语法
+      - name: node --check
+        shell: pwsh
+        run: |
+          foreach ($f in 'index.js','host.js','presence.js','client.js') {
+            node --check $f
+            if ($LASTEXITCODE -ne 0) { throw "$f failed node --check" }
+          }
+
+      # 两个 PowerShell 脚本：必须能被解析，而且必须带 UTF-8 BOM
+      # （缺 BOM 时 PowerShell 5.1 会按本地代码页读中文，直接解析失败）
+      - name: PowerShell parse + BOM
+        shell: pwsh
+        run: |
+          foreach ($f in 'host.ps1','overlay.ps1') {
+            $path = Join-Path 'scripts' $f
+            $bom = [System.IO.File]::ReadAllBytes($path)[0..2]
+            if ($bom[0] -ne 0xEF -or $bom[1] -ne 0xBB -or $bom[2] -ne 0xBF) {
+              throw "$f has no UTF-8 BOM"
+            }
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$errors)
+            if ($errors) { throw "$f : $($errors[0].Message)" }
+            Write-Host "$f : PARSE_OK"
+          }
+
+      # 文档相对链接
+      - name: docs links
+        run: node tools/check-docs.cjs

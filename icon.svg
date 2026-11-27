@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="DSH-Computer-Use">
+  <rect x="0" y="0" width="256" height="256" rx="58" fill="#0E1A33"/>
+  <rect x="14" y="14" width="228" height="228" rx="46" fill="none" stroke="#2F7DF6" stroke-width="10" opacity="0.22"/>
+  <rect x="14" y="14" width="228" height="228" rx="46" fill="none" stroke="#2F7DF6" stroke-width="3.5"/>
+  <circle cx="96" cy="96" r="18" fill="none" stroke="#2F7DF6" stroke-width="2.4" opacity="0.75"/>
+  <circle cx="96" cy="96" r="8.5" fill="none" stroke="#2F7DF6" stroke-width="2" opacity="0.95"/>
+  <path d="M96 96 L150 214 L163 168 L206 152 Z" fill="#FFFFFF" stroke="#0E1A33" stroke-width="5" stroke-linejoin="round"/>
+</svg>
