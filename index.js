@@ -3391,7 +3391,14 @@ export function apply(ctx, config) {
         y: Number.isInteger(first?.cursorY) ? first.cursorY : mapped.screenY,
       }
       // 命中必须在点击之后取：菜单、浮层、焦点都是这一下才出现的。
-      const hit = await probeHit(mapped.screenX, mapped.screenY)
+      // 但如果这一点上压着插件自己的浮层，host 已经把它临时穿透再点，并在穿透
+      // 状态下读好了「下面是什么」（hitAfter）。等浮层还回来再 probe，只会读到
+      // 自己的卡片——「点到了下面的按钮」就被报成「点到了浮层」，模型据此以为
+      // 没点中，会再点一次，把动作重复触发。
+      const slipped = first?.slipped === true
+      const hit = slipped && first?.hitAfter !== undefined
+        ? first.hitAfter
+        : await probeHit(mapped.screenX, mapped.screenY)
       const notes = []
       const hitInteractive = CONTROL_HIT_TYPES.has(hit?.controlType ?? '')
         || IDEMPOTENT_HIT_TYPES.has(hit?.controlType ?? '')
@@ -3399,7 +3406,13 @@ export function apply(ctx, config) {
       if (missed) {
         notes.push(`⚠ 落点 (${landed.x}, ${landed.y}) 不在目标矩形 ${expected.x},${expected.y} ${expected.width}×${expected.height} 内。`)
       }
-      if (typeof hit?.window === 'string' && hit.window.startsWith('DSH computer use')) {
+      if (slipped) {
+        const cover = typeof first?.hitBefore?.window === 'string'
+          ? `「${first.hitBefore.window}」`
+          : '插件自己的浮层'
+        const beneath = typeof hit?.window === 'string' ? `「${hit.window}」` : '下面的窗口'
+        notes.push(`⚠ 这一点上压着插件自己的浮层${cover}——已临时让它穿透再点，实际落在${beneath}上。`)
+      } else if (typeof hit?.window === 'string' && hit.window.startsWith('DSH computer use')) {
         notes.push(`⚠ 这一点上压着插件自己的浮层「${hit.window}」——已临时让它穿透，但下面那块未必是你要的窗口。`)
       }
       let retried = false
@@ -3416,13 +3429,17 @@ export function apply(ctx, config) {
         mapped = { ...mapped, screenX: centre.x, screenY: centre.y }
       }
       if (settings.verifyClick && expected !== undefined && before !== undefined) {
-        const settle = settings.settleMs > 0 ? Math.min(settings.settleMs, 300) : 150
-        await new Promise((resolve) => { setTimeout(resolve, settle) })
-        const after = await sampleSignature(mapped.screenX, mapped.screenY)
-        if (signatureChanged(before, after) === false) {
-          notes.push(missed
-            ? '⚠ 点完这一小块画面没有任何变化，而且落点不在目标里——大概没点中。'
-            : '⚠ 落点在目标里，但这一小块画面没有变化：它可能在别处生效（菜单、对话框、状态栏），也可能本来就不改外观。要看结果就截图。')
+        // 画面被插件自己的浮层挡着时，前后两次采样读到的都是浮层，比较没有意义。
+        if (slipped) notes.push('（这块上面压着插件自己的浮层，跳过「画面有没有变化」的比较。）')
+        else {
+          const settle = settings.settleMs > 0 ? Math.min(settings.settleMs, 300) : 150
+          await new Promise((resolve) => { setTimeout(resolve, settle) })
+          const after = await sampleSignature(mapped.screenX, mapped.screenY)
+          if (signatureChanged(before, after) === false) {
+            notes.push(missed
+              ? '⚠ 点完这一小块画面没有任何变化，而且落点不在目标里——大概没点中。'
+              : '⚠ 落点在目标里，但这一小块画面没有变化：它可能在别处生效（菜单、对话框、状态栏），也可能本来就不改外观。要看结果就截图。')
+          }
         }
       }
       const label = clicks === 1 ? 'Clicked' : `${clicks === 2 ? 'Double' : 'Triple'}-clicked`

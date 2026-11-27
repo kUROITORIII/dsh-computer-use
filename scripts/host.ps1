@@ -2005,9 +2005,26 @@ function Invoke-Request($request) {
             $slip = @()
             if ($away) { $slip += $panel }
             if ($own -ne 0 -and $own -ne $panel) { $slip += $own }
+            if ($slip.Count -eq 0) { return Invoke-Click $argsIn }
+            # 谁压在上面（通常就是插件自己的卡片），先记下来：穿透之后就读不到了。
+            $hitBefore = $null
+            try { $hitBefore = Get-HitAt ([int]$argsIn.x) ([int]$argsIn.y) } catch { }
             foreach ($h in $slip) { [void][DshWin]::SetPanelAway($h, $true) }
-            if ($slip.Count -gt 0) { Start-Sleep -Milliseconds 15 }
-            try { return Invoke-Click $argsIn } finally { foreach ($h in $slip) { [void][DshWin]::SetPanelAway($h, $false) } }
+            Start-Sleep -Milliseconds 15
+            try {
+                $result = Invoke-Click $argsIn
+                # 还回来之前再读一次命中。还回来以后读到的就是插件自己，
+                # 那会把「点到了下面的按钮」错报成「点到了自己的卡片」——
+                # 模型据此以为没点中，会再点一次，重复触发动作。
+                $hitAfter = $null
+                try { $hitAfter = Get-HitAt ([int]$argsIn.x) ([int]$argsIn.y) } catch { }
+                if ($result -is [System.Collections.IDictionary]) {
+                    $result['slipped'] = $true
+                    if ($null -ne $hitBefore) { $result['hitBefore'] = $hitBefore }
+                    if ($null -ne $hitAfter) { $result['hitAfter'] = $hitAfter }
+                }
+                return $result
+            } finally { foreach ($h in $slip) { [void][DshWin]::SetPanelAway($h, $false) } }
         }
         'drag' {
             $panel = 0
