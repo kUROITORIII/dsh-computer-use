@@ -520,15 +520,21 @@ $glowXaml = @'
         <DropShadowEffect ShadowDepth="0" Opacity="0.9"/>
       </Border.Effect>
     </Border>
-    <Border x:Name="TargetFrame" Visibility="Collapsed" BorderThickness="2" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False">
+    <Border x:Name="TargetFrame" Visibility="Collapsed" BorderThickness="4" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False">
       <Border.Effect>
         <DropShadowEffect ShadowDepth="0" BlurRadius="26" Opacity="0.9"/>
       </Border.Effect>
     </Border>
     <Ellipse x:Name="ClickPoint" Width="34" Height="34" StrokeThickness="2.5" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False"/>
-    <Path x:Name="TargetFlow" Visibility="Collapsed" StrokeThickness="2" StrokeDashArray="150,1500" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeDashCap="Round" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False"/>
+    <Path x:Name="TargetFlow" Visibility="Collapsed" StrokeThickness="3" StrokeDashArray="150,1500" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeDashCap="Round" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False"/>
     <Border x:Name="TargetLabel" Visibility="Collapsed" Background="#F2181A20" BorderThickness="1" CornerRadius="7" Padding="10,4" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False">
       <TextBlock x:Name="TargetLabelText" FontSize="11" Foreground="#F3F3F7"/>
+    </Border>
+    <Border x:Name="TargetPill" Visibility="Collapsed" Background="#F2181A20" BorderThickness="1" CornerRadius="9" Padding="12,6" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,12,0,0" IsHitTestVisible="False">
+      <StackPanel Orientation="Horizontal">
+        <Ellipse x:Name="TargetPillDot" Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+        <TextBlock x:Name="TargetPillText" FontSize="12" Foreground="#F5F6FA" VerticalAlignment="Center"/>
+      </StackPanel>
     </Border>  </Grid>
 </Window>
 '@
@@ -685,6 +691,9 @@ $targetFrame = Find-Element $script:glow 'TargetFrame'
 $targetLabel = Find-Element $script:glow 'TargetLabel'
 $targetLabelText = Find-Element $script:glow 'TargetLabelText'
 $targetFlow = Find-Element $script:glow 'TargetFlow'
+$targetPill = Find-Element $script:glow 'TargetPill'
+$targetPillText = Find-Element $script:glow 'TargetPillText'
+$targetPillDot = Find-Element $script:glow 'TargetPillDot'
 $clickPoint = Find-Element $script:glow 'ClickPoint'
 
 # ── accent colour ───────────────────────────────────────────────────────────
@@ -777,13 +786,17 @@ $script:chipTextDefault = $permissionAppText.Foreground
 $noticeDot.Fill = New-Object System.Windows.Media.SolidColorBrush((New-AccentColor 255))
 $noticeCard.BorderBrush = New-Object System.Windows.Media.SolidColorBrush((New-AccentColor 235))
 if ($null -ne $noticeCard.Effect) { $noticeCard.Effect.Color = New-AccentColor 255 }
-$targetFrame.BorderBrush = New-Object System.Windows.Media.SolidColorBrush((New-AccentColor 150))
+$targetFrame.BorderBrush = New-Object System.Windows.Media.SolidColorBrush((New-AccentColor 255))
 $targetFrame.Effect.Color = New-AccentColor 255
+$targetFrame.Effect.Opacity = 0.6
 $script:clickPoint = $clickPoint
 $clickPoint.Stroke = New-Object System.Windows.Media.SolidColorBrush([System.Windows.Media.Color]::FromArgb(255, (New-LightChannel $accentR 0.7), (New-LightChannel $accentG 0.7), (New-LightChannel $accentB 0.7)))
-$targetFlow.Stroke = New-Object System.Windows.Media.SolidColorBrush([System.Windows.Media.Color]::FromArgb(255, (New-LightChannel $accentR 0.55), (New-LightChannel $accentG 0.55), (New-LightChannel $accentB 0.55)))
+$targetFlow.Stroke = New-Object System.Windows.Media.SolidColorBrush([System.Windows.Media.Color]::FromArgb(255, $accentR, $accentG, $accentB))
 $targetLabel.BorderBrush = New-Object System.Windows.Media.SolidColorBrush((New-AccentColor 120))
 $targetLabel.BorderThickness = New-Object System.Windows.Thickness(1)
+$targetPill.BorderBrush = New-Object System.Windows.Media.SolidColorBrush((New-AccentColor 210))
+$targetPill.BorderThickness = New-Object System.Windows.Thickness(1)
+$targetPillDot.Fill = New-Object System.Windows.Media.SolidColorBrush((New-AccentColor 255))
 
 $script:app = New-Object System.Windows.Application
 $script:pendingPermission = $null
@@ -1165,6 +1178,7 @@ function Handle-Message($line) {
                 $targetFrame.Visibility = 'Collapsed'
                 $targetFlow.Visibility = 'Collapsed'
                 $targetLabel.Visibility = 'Collapsed'
+                $targetPill.Visibility = 'Collapsed'
             }
             if ($message.clickPoint -eq $false) { $clickPoint.Visibility = 'Collapsed' }
             Write-Log ('policy done cardVis=' + $script:card.Visibility + ' glowVis=' + $script:glow.Visibility + ' glowOp=' + $script:glow.Opacity + ' rootOp=' + $glowRoot.Opacity)
@@ -1236,6 +1250,14 @@ function Handle-Message($line) {
         'target' {
             $targetWidth = [double]$message.width
             $targetHeight = [double]$message.height
+            # 常驻标牌：不管边框收没收（被盖住/最小化），这块都写着"正在操作谁"。
+            $pillCaption = [string]$message.label
+            if ([string]::IsNullOrWhiteSpace($pillCaption)) {
+                $targetPill.Visibility = 'Collapsed'
+            } else {
+                $targetPillText.Text = $pillCaption
+                $targetPill.Visibility = 'Visible'
+            }
             if ($targetWidth -le 1 -or $targetHeight -le 1) {
                 $targetFrame.Visibility = 'Collapsed'
                 $targetFlow.Visibility = 'Collapsed'
@@ -1314,6 +1336,7 @@ function Handle-Message($line) {
             $targetFrame.Visibility = 'Collapsed'
             $targetFlow.Visibility = 'Collapsed'
             $targetLabel.Visibility = 'Collapsed'
+            $targetPill.Visibility = 'Collapsed'
         }
         'live' {
             $lineText = [string]$message.text
@@ -1904,7 +1927,7 @@ $script:voiceTimer.Add_Tick({
 })
 $script:voiceTimer.Start()
 $framePulse = New-Object System.Windows.Media.Animation.DoubleAnimation
-$framePulse.From = 0.72
+$framePulse.From = 0.9
 $framePulse.To = 1.0
 $framePulse.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(1.2))
 $framePulse.AutoReverse = $true
