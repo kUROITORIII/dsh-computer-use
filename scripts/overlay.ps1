@@ -511,10 +511,10 @@ $glowXaml = @'
         ShowInTaskbar="False" Topmost="True" ShowActivated="False" IsHitTestVisible="False"
         ResizeMode="NoResize">
   <Grid x:Name="GlowRoot" Opacity="0.8">
-    <Rectangle x:Name="BandTop" VerticalAlignment="Top" Height="72"/>
-    <Rectangle x:Name="BandBottom" VerticalAlignment="Bottom" Height="72"/>
-    <Rectangle x:Name="BandLeft" HorizontalAlignment="Left" Width="72"/>
-    <Rectangle x:Name="BandRight" HorizontalAlignment="Right" Width="72"/>
+    <Rectangle x:Name="BandTop" VerticalAlignment="Top" Height="92"/>
+    <Rectangle x:Name="BandBottom" VerticalAlignment="Bottom" Height="92"/>
+    <Rectangle x:Name="BandLeft" HorizontalAlignment="Left" Width="92"/>
+    <Rectangle x:Name="BandRight" HorizontalAlignment="Right" Width="92"/>
     <Border x:Name="EdgeLine" BorderThickness="2" Opacity="0.9">
       <Border.Effect>
         <DropShadowEffect ShadowDepth="0" Opacity="0.9"/>
@@ -737,31 +737,9 @@ $bandBottom.Fill = New-BandBrush 'bottom'
 $bandLeft.Fill = New-BandBrush 'left'
 $bandRight.Fill = New-BandBrush 'right'
 
-# Rounded corner halo: a soft radial blob centred on each screen corner keeps
-# the four bands from meeting in a hard right angle.
-foreach ($corner in @(
-        @{ h = 'Left'; v = 'Top'; m = @(-150.0, -150.0, 0.0, 0.0) },
-        @{ h = 'Right'; v = 'Top'; m = @(0.0, -150.0, -150.0, 0.0) },
-        @{ h = 'Left'; v = 'Bottom'; m = @(-150.0, 0.0, 0.0, -150.0) },
-        @{ h = 'Right'; v = 'Bottom'; m = @(0.0, 0.0, -150.0, -150.0) })) {
-    $blob = New-Object System.Windows.Shapes.Ellipse
-    $blob.Width = 300
-    $blob.Height = 300
-    $blob.HorizontalAlignment = $corner.h
-    $blob.VerticalAlignment = $corner.v
-    $blob.Margin = [System.Windows.Thickness]::new([double]$corner.m[0], [double]$corner.m[1], [double]$corner.m[2], [double]$corner.m[3])
-    $blob.IsHitTestVisible = $false
-    $radial = New-Object System.Windows.Media.RadialGradientBrush
-    $radial.Center = '0.5,0.5'
-    $radial.GradientOrigin = '0.5,0.5'
-    $radial.RadiusX = 0.5
-    $radial.RadiusY = 0.5
-    [void]$radial.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 150), 0)))
-    [void]$radial.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 64), 0.5)))
-    [void]$radial.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 0), 1)))
-    $blob.Fill = $radial
-    [void]$glowRoot.Children.Insert($glowRoot.Children.Count - 1, $blob)
-}
+# 四角的圆形光斑（原来放四个 300×300 的径向渐变椭圆，用来把直角抹圆）在 2026-11-28
+# 去掉了：四条带子现在尾巴已经拖得很长，直角交界本来就过渡得开；而那团圆斑在
+# 用户眼里是一块「不知道是什么的弧形区域」，反而比直角更突兀。
 
 $edgeLight = [System.Windows.Media.Color]::FromArgb(242, (New-LightChannel $accentR 0.5), (New-LightChannel $accentG 0.5), (New-LightChannel $accentB 0.5))
 $edgeLine.BorderBrush = New-Object System.Windows.Media.SolidColorBrush($edgeLight)
