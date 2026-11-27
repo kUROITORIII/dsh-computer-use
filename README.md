@@ -95,6 +95,8 @@
 
 参数、成本、暂停时能不能用，见 [docs/TOOLS.md](docs/TOOLS.md)。
 
+> 目标软件有源码（Blender、GIMP、LibreOffice、OBS、drawio…）时，还有一条更省事的路线：用上游 [CLI-Anything](https://github.com/HKUDS/CLI-Anything) 的 harness 直接下命令。本插件不依赖它，也不打包它；想试看 [docs/OPTIONAL-CLI.md](docs/OPTIONAL-CLI.md)。
+
 ## 设置
 
 46 项配置，默认值、范围、设置页有没有，见 [docs/SETTINGS.md](docs/SETTINGS.md)。最常改的三个：
@@ -131,6 +133,7 @@ dsh-computer-use-windows/
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 进程分工、消息协议、生命周期、改动地图 |
 | [docs/MAINTENANCE.md](docs/MAINTENANCE.md) | 改代码前后的检查清单、验证命令、故障速查 |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | 每一版改了什么、为什么 |
+| [docs/OPTIONAL-CLI.md](docs/OPTIONAL-CLI.md) | 可选：有源码的软件用 CLI harness 驱动（指向上游，不打包） |
 
 ## 开发
 
