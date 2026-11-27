@@ -511,10 +511,10 @@ $glowXaml = @'
         ShowInTaskbar="False" Topmost="True" ShowActivated="False" IsHitTestVisible="False"
         ResizeMode="NoResize">
   <Grid x:Name="GlowRoot" Opacity="0.8">
-    <Rectangle x:Name="BandTop" VerticalAlignment="Top" Height="112"/>
-    <Rectangle x:Name="BandBottom" VerticalAlignment="Bottom" Height="112"/>
-    <Rectangle x:Name="BandLeft" HorizontalAlignment="Left" Width="112"/>
-    <Rectangle x:Name="BandRight" HorizontalAlignment="Right" Width="112"/>
+    <Rectangle x:Name="BandTop" VerticalAlignment="Top" Height="72"/>
+    <Rectangle x:Name="BandBottom" VerticalAlignment="Bottom" Height="72"/>
+    <Rectangle x:Name="BandLeft" HorizontalAlignment="Left" Width="72"/>
+    <Rectangle x:Name="BandRight" HorizontalAlignment="Right" Width="72"/>
     <Border x:Name="EdgeLine" BorderThickness="2" Opacity="0.9">
       <Border.Effect>
         <DropShadowEffect ShadowDepth="0" Opacity="0.9"/>
@@ -2020,9 +2020,9 @@ Reset-ReplyPlaceholder
 # 一起变，读起来是「一亮一暗地闪」，而不是呼吸。幅度也收窄（0.82↔1.0），
 # 用正弦缓动而不是线性——线性动画在折返点很硬，看着像开关灯。
 $script:bandPulse = New-Object System.Windows.Media.Animation.DoubleAnimation
-$script:bandPulse.From = 0.82
+$script:bandPulse.From = 0.72
 $script:bandPulse.To = 1.0
-$script:bandPulse.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(2.6))
+$script:bandPulse.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(4.2))
 $script:bandPulse.AutoReverse = $true
 $script:bandPulse.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
 $script:bandPulse.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
