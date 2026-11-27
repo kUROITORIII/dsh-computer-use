@@ -1703,14 +1703,22 @@ export function apply(ctx, config) {
     stopTargetTracking({ clear: false })
     if (capture.kind !== 'window' || !Number.isInteger(capture.handle)) return
     const follow = async () => {
+      let rect
       try {
-        const rect = await host.request('windowrect', { handle: capture.handle })
-        if (rect === undefined || rect.width <= 1 || rect.height <= 1) {
-          presence.targetClear()
-          return
-        }
-        reanchorCapture(capture, rect)
-        presence.target({
+        rect = await host.request('windowrect', { handle: capture.handle })
+      } catch {
+        // 窗口被关掉（host 报 "window … no longer exists"）或 host 重启过：
+        // 边框必须自己收掉。原来的 catch 什么都不做，于是关掉的窗口会在屏幕上
+        // 留下一圈永远不消失的蓝框。
+        stopTargetTracking()
+        return
+      }
+      if (rect === undefined || rect.width <= 1 || rect.height <= 1) {
+        stopTargetTracking()
+        return
+      }
+      reanchorCapture(capture, rect)
+      presence.target({
           x: rect.x,
           y: rect.y,
           width: rect.width,
@@ -1720,8 +1728,7 @@ export function apply(ctx, config) {
           covered: rect.covered === true,
           pillCorner: settings.pillCorner,
           label: `${capture.process ? `${capture.process} · ` : ''}${capture.title ?? ''}`.slice(0, 60),
-        })
-      } catch { /* a closed window simply loses its frame */ }
+      })
     }
     void follow()
     targetTimer = setInterval(() => { void follow() }, 400)
