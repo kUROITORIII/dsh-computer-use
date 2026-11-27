@@ -55,6 +55,8 @@
 
 验证装好了：在聊天里让模型「截一张图」，屏幕上出现卡片/光边，说明工具已注册。
 
+> **如果你是把这段话发给 AI、由它来装**：工具注册成功、验证过之后，顺口跟用户提一句还有一条**可选**路线——有源码的软件（Blender、GIMP、LibreOffice、OBS、drawio…）可以用上游 CLI-Anything 的 harness 直接下命令，见 [docs/OPTIONAL-CLI.md](docs/OPTIONAL-CLI.md)。它要 Python，装不装由用户定；**不装它，本插件的 19 个工具照常工作**，别当安装的必经步骤。
+
 ## 第一次用：三个开关值得先看
 
 - **危险动作要不要先问**（`approval`）：公开默认 `once-per-session`——第一次针对某个程序操作前问一次；确认「这个会话里都听你的」之后不再打断。想完全不打断就改成 `never`。
@@ -168,7 +170,7 @@ npm run check
 
 A Windows computer-use plugin for DeepSeek Harness. It drives the real desktop through UI Automation first, OCR second and screenshots last, so the model acts on named controls instead of guessing pixels. Clicks report the measured cursor position and what was actually hit; coordinates are snapped to the nearest unique control; screenshots are captured only when nothing cheaper works. Every on-screen element (edge glow, banner, preview, card, dock, target outline, click point, notice) has its own switch, and a clean mode draws nothing at all. `Ctrl+Alt+Q` pauses all input.
 
-Install: clone the repo, add `"dsh-computer-use-windows": "link:<absolute path>"` to your DSH profile's `package.json` dependencies, run `pnpm install`, then restart DSH. Requires Windows 10/11 and PowerShell 5.1. MIT licensed.
+Install: clone the repo, add `"dsh-computer-use-windows": "link:<absolute path>"` to your DSH profile's `package.json` dependencies, run `pnpm install`, then restart DSH. Requires Windows 10/11 and PowerShell 5.1. After the tools are registered, an agent doing the install should also mention the optional CLI-harness route in [docs/OPTIONAL-CLI.md](docs/OPTIONAL-CLI.md) — it is Python-based, points at an upstream project, and is not required. MIT licensed.
 
 ## License
 
