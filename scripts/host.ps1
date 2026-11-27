@@ -1169,6 +1169,38 @@ function Invoke-WindowRect($argsIn) {
     $box = [DshWin]::VisibleRectOf($handle)
     if ($null -eq $box) { throw "window $handle no longer exists" }
     $foreground = [DshWin]::Foreground()
+    # 目标窗口被别的窗口压住时，浮层画在它上面的边框会"穿透"到最上层，
+    # 看起来像被压住的窗口反而在上面。这里采几个点判断有没有被盖住——
+    # 自己的浮层不算（卡片本来就该压在目标上面）。
+    $covered = $false
+    $coveredBy = ''
+    $minimized = [bool][DshWin]::IsIconic([IntPtr]$handle)
+    if (-not $minimized -and $box[2] -gt 12 -and $box[3] -gt 12) {
+        $left = [int]$box[0]
+        $top = [int]$box[1]
+        $right = [int]($box[0] + $box[2] - 1)
+        $bottom = [int]($box[1] + $box[3] - 1)
+        $inset = 6
+        $samples = @(
+            @([int](($left + $right) / 2), [int](($top + $bottom) / 2)),
+            @(($left + $inset), ($top + $inset)),
+            @(($right - $inset), ($top + $inset)),
+            @(($left + $inset), ($bottom - $inset)),
+            @(($right - $inset), ($bottom - $inset))
+        )
+        foreach ($sample in $samples) {
+            try {
+                $root = [DshWin]::RootAt([int]$sample[0], [int]$sample[1])
+                if ($root -eq 0 -or $root -eq $handle) { continue }
+                $rootTitle = [DshWin]::WindowTitle($root)
+                if ($rootTitle -like 'DSH computer use*') { continue }
+                $covered = $true
+                if ([string]::IsNullOrEmpty($coveredBy)) { $coveredBy = $rootTitle }
+            } catch { }
+        }
+    }
+    # 最小化的窗口根本没有"可见的边框"，画出来只会是一块奇怪的方框。
+    if ($minimized) { $covered = $true }
     return [ordered]@{
         handle      = $handle
         x           = [int]$box[0]
@@ -1177,7 +1209,9 @@ function Invoke-WindowRect($argsIn) {
         height      = [int]$box[3]
         title       = [DshWin]::WindowTitle($handle)
         active      = ($foreground -eq $handle)
-        minimized   = [bool][DshWin]::IsIconic([IntPtr]$handle)
+        minimized   = $minimized
+        covered     = $covered
+        coveredBy   = $coveredBy
     }
 }
 

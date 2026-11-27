@@ -1240,6 +1240,12 @@ function Handle-Message($line) {
                 $targetFrame.Visibility = 'Collapsed'
                 $targetFlow.Visibility = 'Collapsed'
                 $targetLabel.Visibility = 'Collapsed'
+            } elseif ($message.covered -eq $true) {
+                # 目标窗口被别的窗口压住时，这条画在它上面的边框会浮到最上层——
+                # 看起来像被压住的窗口反而在前面。先收起来，等它重新露出来再画。
+                $targetFrame.Visibility = 'Collapsed'
+                $targetFlow.Visibility = 'Collapsed'
+                $targetLabel.Visibility = 'Collapsed'
             } else {
                 $targetX = [double]$message.x - $virtualLeft
                 $targetY = [double]$message.y - $virtualTop

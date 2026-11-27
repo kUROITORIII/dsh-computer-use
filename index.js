@@ -1703,6 +1703,9 @@ export function apply(ctx, config) {
           y: rect.y,
           width: rect.width,
           height: rect.height,
+          // 被别的窗口压住时别画边框：浮层在最上层，那条边会看起来像被压住的
+          // 窗口反而在前面。露出来以后下一次轮询会自然把它画回去。
+          covered: rect.covered === true,
           label: `${capture.process ? `${capture.process} · ` : ''}${capture.title ?? ''}`.slice(0, 60),
         })
       } catch { /* a closed window simply loses its frame */ }
