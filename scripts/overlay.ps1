@@ -836,17 +836,69 @@ function Stop-BandPulse {
     }
 }
 
+# 同一台机器上可能有不止一个浮层进程（两个 DSH 会话各起一个）。边光是"整台机器
+# 正在被操作"的指示，两圈光叠在一起、相位又不同，就会看到拍频式的闪。用一个
+# 命名互斥量决定谁画边光：抢到的画带子，没抢到的只画卡片/标牌/边框。
+$script:glowMutex = $null
+$script:ownsGlowBands = $false
+$script:glowBandsHidden = $false
+
+function Set-BandVisibility([bool]$visible) {
+    foreach ($band in @($bandTop, $bandBottom, $bandLeft, $bandRight)) {
+        if ($null -eq $band) { continue }
+        $band.Visibility = if ($visible) { 'Visible' } else { 'Collapsed' }
+    }
+}
+
+function Update-GlowBandOwnership {
+    if ($script:ownsGlowBands) { return $true }
+    $acquired = $false
+    try {
+        if ($null -eq $script:glowMutex) {
+            $script:glowMutex = New-Object System.Threading.Mutex($false, 'Local\DSHComputerUseEdgeGlow')
+        }
+        $acquired = $script:glowMutex.WaitOne(0)
+    } catch [System.Threading.AbandonedMutexException] {
+        $acquired = $true
+    } catch {
+        $acquired = $false
+    }
+    if ($acquired) {
+        $script:ownsGlowBands = $true
+        $script:glowBandsHidden = $false
+        Set-BandVisibility $true
+        Write-Log 'edge glow ownership: acquired'
+        Start-BandPulse
+        return $true
+    }
+    if (-not $script:glowBandsHidden) {
+        Set-BandVisibility $false
+        $script:glowBandsHidden = $true
+        Write-Log 'edge glow ownership: another overlay owns it, bands hidden'
+    }
+    return $false
+}
+
+function Release-GlowBandOwnership {
+    if (-not $script:ownsGlowBands) { return }
+    try { [void]$script:glowMutex.ReleaseMutex() } catch { }
+    $script:ownsGlowBands = $false
+    Stop-BandPulse
+    Set-BandVisibility $false
+    $script:glowBandsHidden = $true
+}
+
 function Set-GlowVisible([bool]$visible) {
     $script:glowWanted = $visible
     if ($visible) {
         $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
         $script:glow.Opacity = 1
         $script:glow.Visibility = 'Visible'
-        Start-BandPulse
+        if (Update-GlowBandOwnership) { Start-BandPulse } else { Stop-BandPulse }
         return
     }
     # 先让四条带子回到静止，再让整扇窗淡出；根容器不再参与呼吸。
-    Stop-BandPulse
+    Release-GlowBandOwnership
     if ($null -ne $glowRoot) {
         $glowRoot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
         $glowRoot.Opacity = 1
@@ -2096,7 +2148,11 @@ function Stop-VoiceCapture([string]$reason = '') {
 # 每 150 ms 看一眼真实光标：靠近标牌就把 ⣿ 把手露出来，移开 1.2 秒收起。
 $script:pillHoverTimer = New-Object System.Windows.Threading.DispatcherTimer
 $script:pillHoverTimer.Interval = [TimeSpan]::FromMilliseconds(150)
-$script:pillHoverTimer.Add_Tick({ try { Update-PillHover } catch { } })
+$script:pillHoverTimer.Add_Tick({
+    try { Update-PillHover } catch { }
+    # 另一个浮层退出后，把边光接过来；不抢的话屏幕上会一直没光。
+    if ((-not $script:ownsGlowBands) -and ($script:glow.Visibility -eq 'Visible')) { try { [void](Update-GlowBandOwnership) } catch { } }
+})
 $script:pillHoverTimer.Start()
 
 $script:voiceTimer = New-Object System.Windows.Threading.DispatcherTimer
