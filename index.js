@@ -1204,15 +1204,18 @@ export function apply(ctx, config) {
       stopTargetTracking()
       presence.live('')
       presence.finish(event.data?.reason?.kind === 'aborted' ? '已停止' : '已完成')
-      // Nothing needs the helper between turns any more (no global hotkey), so
-      // let it exit instead of idling in the background. The window comes back
-      // first, and undockSelf reads its record from disk when this instance has
-      // lost it, so a docked corner can never survive the end of a turn.
+      // The helper used to exit six seconds after the turn ended. That made every
+      // turn rebuild the overlay from scratch: the new process needs seconds to
+      // paint, so the edge light came back as a dark-then-full-brightness jump,
+      // and with two sessions taking turns it read as a strobe. Keep the helper
+      // warm for a few minutes instead — long enough to reuse it between turns,
+      // short enough that an abandoned session does not leave a window process
+      // behind forever.
       const stopTimer = setTimeout(() => {
-        // A new turn may have started inside these six seconds: its card and
+        // A new turn may have started inside this window: its card and
         // hotkey must not be killed by the previous turn's timer.
         if (docked === null && !presence.visible) presence.stop()
-      }, 6_000)
+      }, 300_000)
       stopTimer.unref?.()
       turnStopTimer = stopTimer
       void undockSelf().catch(() => { })

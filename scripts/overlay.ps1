@@ -797,7 +797,7 @@ $script:hintSuffix = ''
 $script:logPath = Join-Path $env:TEMP 'dsh-overlay.log'
 function Write-Log([string]$text) {
     try {
-        Add-Content -LiteralPath $script:logPath -Value ((Get-Date).ToString('HH:mm:ss.fff') + ' ' + $text) -Encoding UTF8
+        Add-Content -LiteralPath $script:logPath -Value ((Get-Date).ToString('HH:mm:ss.fff') + ' [' + $PID + '] ' + $text) -Encoding UTF8
     } catch {
     }
 }
@@ -842,6 +842,10 @@ function Stop-BandPulse {
 $script:glowMutex = $null
 $script:ownsGlowBands = $false
 $script:glowBandsHidden = $false
+$script:glowWanted = $false
+# 淡入开始的时刻。同一个回合里 `show` 和 `glow-only` 会连着到，第二次调用不能
+# 把正在跑的淡入掐掉——那一下就是「先黑、再猛亮」。
+$script:glowLitAt = [DateTime]::MinValue
 
 function Set-BandVisibility([bool]$visible) {
     foreach ($band in @($bandTop, $bandBottom, $bandLeft, $bandRight)) {
@@ -888,34 +892,87 @@ function Release-GlowBandOwnership {
     $script:glowBandsHidden = $true
 }
 
+# 边光在两件事之间最容易被看成「闪」：一是从无到有那一下（原来直接设成不透明），
+# 二是两个浮层交接时中间那几十到几百毫秒的黑。所以：亮起淡入 220 ms，收起前
+# 先挂 600 ms 宽限，期间任何一边再要显示就取消，交接就不会留下黑洞。
+$script:glowHideTimer = $null
+
 function Set-GlowVisible([bool]$visible) {
+    Write-Log ('glow set=' + $visible + ' was=' + $script:glow.Visibility + ' owned=' + $script:ownsGlowBands)
     $script:glowWanted = $visible
     if ($visible) {
-        $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
-        $script:glow.Opacity = 1
+        if ($null -ne $script:glowHideTimer) {
+            $script:glowHideTimer.Stop()
+            $script:glowHideTimer = $null
+        }
+        $wasVisible = ($script:glow.Visibility -eq 'Visible')
         $script:glow.Visibility = 'Visible'
+        # 从「当前实际亮度」接着往上走：收起过就从 0 淡入，正在淡入/淡出就从中途接上，
+        # 已经全亮就什么都不做。原来按 Visibility 判断，窗口还挂着但已经暗下去时会被
+        # 当成「已点亮」，直接设成全亮——那就是每次亮起都猛的一下。
+        $current = 0.0
+        if ($wasVisible) {
+            try { $current = [double]$script:glow.Opacity } catch { $current = 0.0 }
+        }
+        if ($current -ge 0.995) {
+            $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+            $script:glow.Opacity = 1
+        } else {
+            $script:glow.Opacity = $current
+            try {
+                $fadeIn = New-Object System.Windows.Media.Animation.DoubleAnimation($current, 1, [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(260)))
+                $script:glowLitAt = Get-Date
+                $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $fadeIn)
+            } catch {
+                $script:glow.Opacity = 1
+            }
+        }
         if (Update-GlowBandOwnership) { Start-BandPulse } else { Stop-BandPulse }
         return
     }
-    # 先让四条带子回到静止，再让整扇窗淡出；根容器不再参与呼吸。
-    Release-GlowBandOwnership
     if ($null -ne $glowRoot) {
         $glowRoot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
         $glowRoot.Opacity = 1
     }
-    if ($script:glow.Visibility -ne 'Visible') { return }
-    try {
-        $fade = New-Object System.Windows.Media.Animation.DoubleAnimation(1, 0, [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(300)))
-        $fade.Add_Completed({
-            if ($script:glowWanted) { return }
-            $script:glow.Visibility = 'Collapsed'
-            $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
-            $script:glow.Opacity = 1
-        })
-        $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $fade)
-    } catch {
-        $script:glow.Visibility = 'Collapsed'
+    if ($script:glow.Visibility -ne 'Visible') {
+        Release-GlowBandOwnership
+        return
     }
+    $litNow = 1.0
+    try { $litNow = [double]$script:glow.Opacity } catch { $litNow = 1.0 }
+    if ($litNow -lt 0.01) {
+        # 屏幕上本来就没有光（刚启动、或上一轮已经淡完）：没有可淡出的东西。
+        Release-GlowBandOwnership
+        return
+    }
+    if ($null -ne $script:glowHideTimer) { $script:glowHideTimer.Stop() }
+    $script:glowHideTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:glowHideTimer.Interval = [TimeSpan]::FromMilliseconds(600)
+    $script:glowHideTimer.Add_Tick({
+        $script:glowHideTimer.Stop()
+        $script:glowHideTimer = $null
+        Write-Log ('glow grace fired wanted=' + $script:glowWanted + ' vis=' + $script:glow.Visibility + ' owned=' + $script:ownsGlowBands)
+        if ($script:glowWanted) { return }
+        Release-GlowBandOwnership
+        try {
+            # 从当前实际亮度开始淡出：淡入还没走完就收到结束，直接按 1 起跳会闪一下。
+            $fromNow = 1.0
+            try { $fromNow = [double]$script:glow.Opacity } catch { $fromNow = 1.0 }
+            $fade = New-Object System.Windows.Media.Animation.DoubleAnimation($fromNow, 0, [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(300)))
+            $fade.Add_Completed({
+                if ($script:glowWanted) { return }
+                # 只把不透明度归零，不折叠窗口。折叠过的全屏分层窗口再显示时，Windows
+                # 会把浮层当后台进程降频：下一轮的消息要晚 1.5 秒才处理，首帧还要再等
+                # 2 秒，淡入早就跑完了——屏幕上看到的就是「暗很久，再猛地一亮」。
+                $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+                $script:glow.Opacity = 0
+            })
+            $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $fade)
+        } catch {
+            $script:glow.Opacity = 0
+        }
+    })
+    $script:glowHideTimer.Start()
 }
 
 function Set-CardVisible([bool]$visible) {
@@ -2151,7 +2208,9 @@ $script:pillHoverTimer.Interval = [TimeSpan]::FromMilliseconds(150)
 $script:pillHoverTimer.Add_Tick({
     try { Update-PillHover } catch { }
     # 另一个浮层退出后，把边光接过来；不抢的话屏幕上会一直没光。
-    if ((-not $script:ownsGlowBands) -and ($script:glow.Visibility -eq 'Visible')) { try { [void](Update-GlowBandOwnership) } catch { } }
+    # 只在自己正该亮着的时候接：光已经在收的时候去抢，等于把刚熄的灯又点起来，
+    # 屏幕上就是「暗下去又猛地一亮」。
+    if ((-not $script:ownsGlowBands) -and $script:glowWanted -and ($script:glow.Visibility -eq 'Visible')) { try { [void](Update-GlowBandOwnership) } catch { } }
 })
 $script:pillHoverTimer.Start()
 
@@ -2320,6 +2379,10 @@ try {
 if ($StartHidden) {
     $glowRoot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
     $glowRoot.Opacity = 0
+    # 窗口自己也从 0 开始。不然启动后的第一次「亮起」会先撞上一个已经是不透明的窗口，
+    # 淡入还没跑完首帧就已经画出来了——冷启动那一下也是一次猛亮。
+    $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+    $script:glow.Opacity = 0
 }
 if ($StartHidden) { $script:card.Opacity = 0 }
 $script:card.Show()
