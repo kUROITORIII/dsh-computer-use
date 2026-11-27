@@ -836,19 +836,36 @@ function Set-Brush([string]$color) {
 # `$glowRoot.Opacity = 0`. Starting it at boot therefore painted the edge light
 # while the glow was switched off, which read as a blue flash at the start of
 # every turn. The pulse now runs only while the light is meant to be visible.
+function Start-BandPulse {
+    if ($null -eq $script:bandPulse) { return }
+    foreach ($band in @($bandTop, $bandBottom, $bandLeft, $bandRight)) {
+        if ($null -ne $band) { $band.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $script:bandPulse) }
+    }
+}
+
+function Stop-BandPulse {
+    foreach ($band in @($bandTop, $bandBottom, $bandLeft, $bandRight)) {
+        if ($null -ne $band) {
+            $band.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+            $band.Opacity = 1
+        }
+    }
+}
+
 function Set-GlowVisible([bool]$visible) {
     $script:glowWanted = $visible
     if ($visible) {
         $script:glow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
         $script:glow.Opacity = 1
         $script:glow.Visibility = 'Visible'
-        if ($null -ne $script:glowPulse) { $glowRoot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $script:glowPulse) }
+        Start-BandPulse
         return
     }
-    # Hiding first stops the breathing, or the paint would stay at 0.55 forever.
+    # 先让四条带子回到静止，再让整扇窗淡出；根容器不再参与呼吸。
+    Stop-BandPulse
     if ($null -ne $glowRoot) {
         $glowRoot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
-        $glowRoot.Opacity = 0
+        $glowRoot.Opacity = 1
     }
     if ($script:glow.Visibility -ne 'Visible') { return }
     try {
@@ -1999,12 +2016,17 @@ Reset-ReplyPlaceholder
 
 # The breathing light is created here but started by Set-GlowVisible, so a
 # switched-off glow never gets painted by a running animation.
-$script:glowPulse = New-Object System.Windows.Media.Animation.DoubleAnimation
-$script:glowPulse.From = 0.55
-$script:glowPulse.To = 0.95
-$script:glowPulse.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(1.6))
-$script:glowPulse.AutoReverse = $true
-$script:glowPulse.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+# 边光只在四条渐变带上呼吸，不再动整个根容器：根容器一暗，目标边框和标牌也跟着
+# 一起变，读起来是「一亮一暗地闪」，而不是呼吸。幅度也收窄（0.82↔1.0），
+# 用正弦缓动而不是线性——线性动画在折返点很硬，看着像开关灯。
+$script:bandPulse = New-Object System.Windows.Media.Animation.DoubleAnimation
+$script:bandPulse.From = 0.82
+$script:bandPulse.To = 1.0
+$script:bandPulse.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(2.6))
+$script:bandPulse.AutoReverse = $true
+$script:bandPulse.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+$script:bandPulse.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
+$script:bandPulse.EasingFunction.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseInOut
 
 $dotPulse = New-Object System.Windows.Media.Animation.DoubleAnimation
 $dotPulse.From = 0.35
