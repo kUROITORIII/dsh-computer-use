@@ -719,9 +719,15 @@ function New-BandBrush([string]$direction) {
         'left'   { $brush.StartPoint = '0,0'; $brush.EndPoint = '1,0' }
         'right'  { $brush.StartPoint = '1,0'; $brush.EndPoint = '0,0' }
     }
-    [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 224), 0)))
-    [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 128), 0.34)))
-    [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 52), 0.7)))
+    # 落得慢一点、尾巴拖长一点：原来 0 → 34% 就把 224 掉到 128，贴边那一段
+    # 又亮又陡，看着像一条硬边。现在峰值降到 150，七段近似指数衰减，
+    # 到 90% 还剩一点点，收尾不在一道线上断掉。
+    [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 150), 0)))
+    [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 132), 0.18)))
+    [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 100), 0.38)))
+    [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 66), 0.58)))
+    [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 34), 0.76)))
+    [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 12), 0.9)))
     [void]$brush.GradientStops.Add((New-Object System.Windows.Media.GradientStop((New-AccentColor 0), 1)))
     return $brush
 }
