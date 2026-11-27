@@ -3008,6 +3008,15 @@ export function apply(ctx, config) {
         return { x: centre.x, y: centre.y, rect: directRect, label: hitLabel(direct) }
       }
     }
+    // The point already sits on a real element (a button's text label, an icon, a
+    // cell): pulling it to a *neighbouring* control would move the click off the
+    // thing the caller aimed at. ClickLab caught exactly that — aiming at the
+    // centre of button 6 and landing on button 5 because 6's text child is not a
+    // snap type and the ring probe found 5 first.
+    if (directRect !== undefined && pointInRect(x, y, directRect)
+      && !['Window', 'Pane', 'Document', 'Group', 'Custom'].includes(String(direct?.controlType ?? ''))) {
+      return undefined
+    }
     const offsets = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]
     const hits = await probeHits(offsets.map(([dx, dy]) => ({ x: x + dx * radius, y: y + dy * radius })))
     const candidates = []
@@ -3309,6 +3318,8 @@ export function apply(ctx, config) {
       const button = ['left', 'right', 'middle'].includes(args.button) ? args.button : 'left'
       const clicks = Number.isInteger(args.clicks) ? Math.min(Math.max(args.clicks, 1), 3) : 1
       let mapped
+      /** Where the caller aimed, before any snap moved the point. */
+      let aimed
       let where
       let expected
       let expectedLabel = ''
@@ -3320,6 +3331,7 @@ export function apply(ctx, config) {
         expectedLabel = `${found.type}「${found.name}」`
         const centre = rectCentre(found.rect)
         mapped = { screenX: centre.x, screenY: centre.y, mapped: true, ageMs: 0 }
+        aimed = { x: centre.x, y: centre.y }
         where = `target ${expectedLabel} = screen (${centre.x}, ${centre.y})`
         input = { target: targetSpec }
       } else if (anchored) {
@@ -3327,6 +3339,7 @@ export function apply(ctx, config) {
         expected = point.rect
         const centre = rectCentre(point.rect)
         mapped = { screenX: centre.x, screenY: centre.y, mapped: true, ageMs: 0 }
+        aimed = { x: centre.x, y: centre.y }
         where = `「${point.label}」${point.total > 1 ? ` (match ${point.match + 1}/${point.total})` : ''} = screen (${centre.x}, ${centre.y})`
         input = { anchor: args.anchor, match: args.match }
       } else {
@@ -3334,6 +3347,7 @@ export function apply(ctx, config) {
         const y = integerArg(args, 'y')
         const space = args.space === 'screen' ? 'screen' : 'image'
         mapped = toScreen(exec, x, y, space, { strictAge: true, allowStale: args.allow_stale === true })
+        aimed = { x: mapped.screenX, y: mapped.screenY }
         where = describePoint(space, x, y, mapped)
         input = { space, x, y }
         // A point read off a picture is an estimate; a control's centre is not.
@@ -3417,6 +3431,10 @@ export function apply(ctx, config) {
         agent: exec.agent?.id ?? '',
         input,
         expected,
+        // `aimed` is what the caller asked for; `requested` is where the click
+        // actually headed after snapping. The pair is what makes "it clicked the
+        // neighbouring button" measurable instead of invisible.
+        aimed,
         requested: { x: mapped.screenX, y: mapped.screenY },
         landed,
         hit: finalHit === undefined ? undefined : { type: finalHit.controlType, name: finalHit.name, window: finalHit.window },
