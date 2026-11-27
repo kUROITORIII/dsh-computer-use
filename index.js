@@ -1687,16 +1687,20 @@ export function apply(ctx, config) {
   let targetTimer = null
 
   /** Stop tracking the current window target. */
-  function stopTargetTracking() {
-    if (targetTimer === null) return
-    clearInterval(targetTimer)
-    targetTimer = null
+  function stopTargetTracking(options = {}) {
+    if (targetTimer !== null) {
+      clearInterval(targetTimer)
+      targetTimer = null
+    }
+    // 清屏这条必须发出去：定时器可能已经被清掉了（换一次截图就会先停再启），
+    // 这时候如果提前 return，浮层上那条边框就留在屏幕上没人收。
+    if (options.clear === false) return
     presence.targetClear()
   }
 
   /** Follow one window so the user can see which one is being driven. */
   function startTargetTracking(capture) {
-    stopTargetTracking()
+    stopTargetTracking({ clear: false })
     if (capture.kind !== 'window' || !Number.isInteger(capture.handle)) return
     const follow = async () => {
       try {

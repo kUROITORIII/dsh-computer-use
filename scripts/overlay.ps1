@@ -1256,11 +1256,6 @@ function Handle-Message($line) {
                 $targetPill.Visibility = 'Collapsed'
                 $script:pillGrip.Hide()
             } else {
-                if ([string]$targetPillText.Text -ne $pillCaption) {
-                    # 换了目标窗口：把手重新露出来，方便重新摆位置。
-                    $script:pillGripSuppressed = $false
-                    if ($null -ne $script:pillGripTimer) { $script:pillGripTimer.Stop(); $script:pillGripTimer = $null }
-                }
                 $targetPillText.Text = $pillCaption
                 $targetPill.Visibility = 'Visible'
                 Set-PillPlacement ([string]$message.pillCorner)
@@ -1490,29 +1485,50 @@ $script:pillGripDrag = $false
 $script:pillGripStartCursor = [System.Windows.Point]::new(0, 0)
 $script:pillGripStartX = 0
 $script:pillGripStartY = 0
-# 拖完之后把手要自己收起来，别一直挂在屏幕上；换目标窗口再出现。
-$script:pillGripSuppressed = $false
-$script:pillGripTimer = $null
+# 把手跟鼠标走：靠近标牌就出现，移开 1.2 秒后收起。浮层整体是点击穿透的，
+# 收不到 MouseMove，只能定时读一次真实光标位置来判"人在不在附近"。
+$script:pillGripNearAt = [DateTime]::MinValue
+$script:pillHoverTimer = $null
 
-function Hide-PillGripSoon {
-    if ($null -ne $script:pillGripTimer) { $script:pillGripTimer.Stop() }
-    $script:pillGripTimer = New-Object System.Windows.Threading.DispatcherTimer
-    $script:pillGripTimer.Interval = [TimeSpan]::FromSeconds(5)
-    $script:pillGripTimer.Add_Tick({
-        $script:pillGripTimer.Stop()
-        $script:pillGripTimer = $null
-        $script:pillGripSuppressed = $true
+function Update-PillHover {
+    if ($script:pillCorner -ne 'custom') {
+        if ($script:pillGrip.Visibility -eq 'Visible') { $script:pillGrip.Hide() }
+        return
+    }
+    if ($targetPill.Visibility -ne 'Visible') {
+        if ($script:pillGrip.Visibility -eq 'Visible') { $script:pillGrip.Hide() }
+        return
+    }
+    $cursor = [System.Windows.Forms.Cursor]::Position
+    $left = $virtualLeft + [int][Math]::Round($targetPill.Margin.Left)
+    $top = $virtualTop + [int][Math]::Round($targetPill.Margin.Top)
+    $width = [Math]::Max(80, [int]$targetPill.ActualWidth)
+    $height = [Math]::Max(24, [int]$targetPill.ActualHeight)
+    # 左边多留 44 px：把手本身就挂在标牌左侧，鼠标往那儿挪不能算"离开"。
+    $near = ($cursor.X -ge ($left - 44)) -and ($cursor.X -le ($left + $width + 16)) `
+        -and ($cursor.Y -ge ($top - 20)) -and ($cursor.Y -le ($top + $height + 20))
+    if ($near) { $script:pillGripNearAt = [DateTime]::UtcNow }
+    $recent = (([DateTime]::UtcNow) - $script:pillGripNearAt).TotalSeconds -lt 1.2
+    if ($near -or $recent) {
+        if ($script:pillGripDrag) { return }
+        Update-PillGripPosition
+        if ($script:pillGrip.Visibility -ne 'Visible') { $script:pillGrip.Show() }
+    } elseif ($script:pillGrip.Visibility -eq 'Visible') {
         $script:pillGrip.Hide()
-    })
-    $script:pillGripTimer.Start()
+    }
+}
+
+function Update-PillGripPosition {
+    $script:pillGrip.Left = [Math]::Round([Math]::Max($virtualLeft + 8, $script:pillCustomX - 34))
+    $script:pillGrip.Top = [Math]::Round([Math]::Max($virtualTop + 8, $script:pillCustomY + 3))
 }
 
 function Update-PillGrip {
-    $show = ($script:pillCorner -eq 'custom') -and ($targetPill.Visibility -eq 'Visible') -and (-not $script:pillGripSuppressed)
-    if (-not $show) { $script:pillGrip.Hide(); return }
-    $script:pillGrip.Left = [Math]::Round([Math]::Max($virtualLeft + 8, $script:pillCustomX - 34))
-    $script:pillGrip.Top = [Math]::Round([Math]::Max($virtualTop + 8, $script:pillCustomY + 3))
-    $script:pillGrip.Show()
+    if (($script:pillCorner -ne 'custom') -or ($targetPill.Visibility -ne 'Visible')) {
+        $script:pillGrip.Hide()
+        return
+    }
+    Update-PillGripPosition
 }
 
 function Set-PillPlacement([string]$corner) {
@@ -1579,7 +1595,8 @@ $script:pillGrip.Add_MouseLeftButtonUp({
         [System.IO.File]::WriteAllText($script:pillPosPath, ('{"x":' + $script:pillCustomX + ',"y":' + $script:pillCustomY + '}'), [System.Text.UTF8Encoding]::new($false))
     } catch { }
     Write-Log ('pill moved xy=' + $script:pillCustomX + ',' + $script:pillCustomY)
-    Hide-PillGripSoon
+    # 松手后不立刻收：鼠标还在附近，留着让人可以接着微调；离开 1.2 秒自然收。
+    $script:pillGripNearAt = [DateTime]::UtcNow
 })
 
 # Show one captured frame beside the docked panel, then fade it away. The file is
@@ -2041,6 +2058,12 @@ function Stop-VoiceCapture([string]$reason = '') {
         Set-Status ('录音失败：' + $saved)
     }
 }
+
+# 每 150 ms 看一眼真实光标：靠近标牌就把 ⣿ 把手露出来，移开 1.2 秒收起。
+$script:pillHoverTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:pillHoverTimer.Interval = [TimeSpan]::FromMilliseconds(150)
+$script:pillHoverTimer.Add_Tick({ try { Update-PillHover } catch { } })
+$script:pillHoverTimer.Start()
 
 $script:voiceTimer = New-Object System.Windows.Threading.DispatcherTimer
 $script:voiceTimer.Interval = [TimeSpan]::FromMilliseconds(120)
