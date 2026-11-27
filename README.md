@@ -34,7 +34,7 @@
 1. 克隆仓库到本地，记下绝对路径，例如 `D:\tools\dsh-computer-use-windows`：
 
    ```powershell
-   git clone https://github.com/kUROITORIII/dsh-computer-use-windows.git
+   git clone https://github.com/kUROITORIII/dsh-computer-use.git
    ```
 
 2. 打开 profile 的 `package.json`（一般在 `%DSH_HOME%\profiles\desktop\package.json`），在 `dependencies` 里加一行，指向你刚克隆的目录：

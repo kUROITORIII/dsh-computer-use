@@ -52,11 +52,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kUROITORIII/dsh-computer-use-windows.git"
+    "url": "git+https://github.com/kUROITORIII/dsh-computer-use.git"
   },
-  "homepage": "https://github.com/kUROITORIII/dsh-computer-use-windows#readme",
+  "homepage": "https://github.com/kUROITORIII/dsh-computer-use#readme",
   "bugs": {
-    "url": "https://github.com/kUROITORIII/dsh-computer-use-windows/issues"
+    "url": "https://github.com/kUROITORIII/dsh-computer-use/issues"
   },
   "dsh": {
     "bundle": {
