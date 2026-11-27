@@ -2004,9 +2004,9 @@ Reset-ReplyPlaceholder
 # 一起变，读起来是「一亮一暗地闪」，而不是呼吸。幅度也收窄（0.82↔1.0），
 # 用正弦缓动而不是线性——线性动画在折返点很硬，看着像开关灯。
 $script:bandPulse = New-Object System.Windows.Media.Animation.DoubleAnimation
-$script:bandPulse.From = 0.72
+$script:bandPulse.From = 0.55
 $script:bandPulse.To = 1.0
-$script:bandPulse.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(4.2))
+$script:bandPulse.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(3.8))
 $script:bandPulse.AutoReverse = $true
 $script:bandPulse.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
 $script:bandPulse.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
