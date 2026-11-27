@@ -3476,6 +3476,11 @@ export function apply(ctx, config) {
         ageMs: mapped.ageMs ?? 0,
         tookMs: Number.isInteger(first?.tookMs) ? first.tookMs : undefined,
       })
+      // 没有可跟踪的窗口时（纯坐标点击），临时报一下"刚才点的是哪个窗口"，
+      // 否则用户只能看见边框一闪，不知道那是谁。几秒后 overlay 自己收掉。
+      if (targetTimer === null && typeof finalHit?.window === 'string' && finalHit.window.trim().length > 0) {
+        presence.pill(finalHit.window.trim().slice(0, 60), settings.pillCorner, 4000)
+      }
       return `${label} ${button} at ${where}.${snappedNote}`
         + `${notes.length > 0 ? `\n${notes.join('\n')}` : ''}`
         + `\n落点 (${landed.x}, ${landed.y})；${hitLine(finalHit)}`

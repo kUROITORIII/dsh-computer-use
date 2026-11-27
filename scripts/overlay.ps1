@@ -1248,6 +1248,11 @@ function Handle-Message($line) {
             Add-Row -text ([string]$message.text) -kind ([string]$message.kind) -thumbPath $thumb -merge $mergeKey
         }
         'target' {
+            # 真正的窗口跟踪来了：撤掉「点一下就冒出来」的临时标牌计时。
+            if ($null -ne $script:pillTtlTimer) {
+                $script:pillTtlTimer.Stop()
+                $script:pillTtlTimer = $null
+            }
             $targetWidth = [double]$message.width
             $targetHeight = [double]$message.height
             # 常驻标牌：不管边框收没收（被盖住/最小化），这块都写着"正在操作谁"。
@@ -1289,6 +1294,26 @@ function Handle-Message($line) {
                     $targetLabel.Margin = [System.Windows.Thickness]::new([Math]::Max(0, $targetX), [Math]::Max(0, $targetY - 32), 0, 0)
                 }
             }
+        }
+        'target-pill' {
+            # 纯坐标点击：没有窗口可跟踪，只在动作后露一下"刚才点的是哪个窗口"。
+            $pillCaption = [string]$message.label
+            if ([string]::IsNullOrWhiteSpace($pillCaption)) { break }
+            $targetPillText.Text = $pillCaption
+            $targetPill.Visibility = 'Visible'
+            Set-PillPlacement ([string]$message.pillCorner)
+            $ttl = 4000
+            if ([int]$message.ttl -gt 0) { $ttl = [int]$message.ttl }
+            if ($null -ne $script:pillTtlTimer) { $script:pillTtlTimer.Stop() }
+            $script:pillTtlTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $script:pillTtlTimer.Interval = [TimeSpan]::FromMilliseconds($ttl)
+            $script:pillTtlTimer.Add_Tick({
+                $script:pillTtlTimer.Stop()
+                $script:pillTtlTimer = $null
+                $targetPill.Visibility = 'Collapsed'
+                $script:pillGrip.Hide()
+            })
+            $script:pillTtlTimer.Start()
         }
         'progress' {
             $progressLabel = [string]$message.label
@@ -1335,6 +1360,7 @@ function Handle-Message($line) {
             Set-Status ('语音识别失败：' + [string]$message.message)
         }
         'target-clear' {
+            if ($null -ne $script:pillTtlTimer) { $script:pillTtlTimer.Stop(); $script:pillTtlTimer = $null }
             $targetFrame.Visibility = 'Collapsed'
             $targetFlow.Visibility = 'Collapsed'
             $targetLabel.Visibility = 'Collapsed'
@@ -1489,6 +1515,8 @@ $script:pillGripStartY = 0
 # 收不到 MouseMove，只能定时读一次真实光标位置来判"人在不在附近"。
 $script:pillGripNearAt = [DateTime]::MinValue
 $script:pillHoverTimer = $null
+# 纯坐标点击时那块"刚点了哪个窗口"的临时标牌，到点自己收。
+$script:pillTtlTimer = $null
 
 function Update-PillHover {
     if ($script:pillCorner -ne 'custom') {

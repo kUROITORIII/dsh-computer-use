@@ -523,6 +523,17 @@ export class Presence {
     this.#write({ type: 'target', ...rect })
   }
 
+  /**
+   * Show the "which window am I operating" badge on its own, without a frame —
+   * for clicks aimed by plain coordinates, where nothing was captured to follow.
+   * The overlay hides it again after `ttl` milliseconds.
+   */
+  pill(label, corner, ttl) {
+    if (!this.#policy.target || !this.available) return
+    if (typeof label !== 'string' || label.trim().length === 0) return
+    this.#write({ type: 'target-pill', label, pillCorner: corner, ttl })
+  }
+
   /** Remove the window outline. */
   targetClear() {
     if (!this.available) return
